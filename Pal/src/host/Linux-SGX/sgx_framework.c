@@ -10,7 +10,6 @@
 
 #include <asm/errno.h>
 
-int gsgx_device = -1;
 int isgx_device = -1;
 #define ISGX_FILE "/dev/isgx"
 
@@ -18,9 +17,6 @@ void * zero_page;
 
 int open_gsgx(void)
 {
-    gsgx_device = INLINE_SYSCALL(open, 3, GSGX_FILE, O_RDWR, 0);
-    if (IS_ERR(gsgx_device))
-        return -ERRNO(gsgx_device);
     isgx_device = INLINE_SYSCALL(open, 3, ISGX_FILE, O_RDWR, 0);
     if (IS_ERR(isgx_device))
         return -ERRNO(isgx_device);
@@ -101,9 +97,6 @@ static size_t get_ssaframesize (uint64_t xfrm)
 
 int check_wrfsbase_support (void)
 {
-    if (gsgx_device == -1)
-        return -EACCES;
-
     uint32_t cpuinfo[4];
     cpuid(7, 0, cpuinfo);
 
@@ -170,11 +163,7 @@ int create_enclave(sgx_arch_secs_t * secs,
     int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_CREATE,
                          &param);
 #else
-    struct gsgx_enclave_create param = {
-        .src = (uint64_t) secs,
-    };
-    int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_CREATE,
-                         &param);
+#error "sgx driver older than 1.8 not supported"
 #endif
 
     if (IS_ERR(ret)) {
@@ -273,26 +262,7 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
         added_size += pagesize;
     }
 #else
-    struct gsgx_enclave_add_pages param = {
-        .addr       = secs->baseaddr + (uint64_t) addr,
-        .user_addr  = (uint64_t) user_addr,
-        .size       = size,
-        .secinfo    = (uint64_t) &secinfo,
-        .flags      = skip_eextend ? GSGX_ENCLAVE_ADD_PAGES_SKIP_EEXTEND : 0,
-    };
-
-    if (!user_addr) {
-        param.user_addr = (unsigned long) zero_page;
-        param.flags |= GSGX_ENCLAVE_ADD_PAGES_REPEAT_SRC;
-    }
-
-    ret = INLINE_SYSCALL(ioctl, 3, gsgx_device,
-                         GSGX_IOCTL_ENCLAVE_ADD_PAGES,
-                         &param);
-    if (IS_ERR(ret)) {
-        SGX_DBG(DBG_I, "Enclave add page returned %d\n", ret);
-        return -ERRNO(ret);
-    }
+#error "sgx driver older than 1.8 not supported"
 #endif
 
     return 0;
@@ -321,13 +291,7 @@ int init_enclave(sgx_arch_secs_t * secs,
     int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_INIT,
                              &param);
 #else
-    struct gsgx_enclave_init param = {
-        .addr           = enclave_valid_addr,
-        .sigstruct      = (uint64_t) sigstruct,
-        .einittoken     = (uint64_t) token,
-    };
-    int ret = INLINE_SYSCALL(ioctl, 3, gsgx_device, GSGX_IOCTL_ENCLAVE_INIT,
-                             &param);
+#error "sgx driver older than 1.8 not supported"
 #endif
 
     if (IS_ERR(ret)) {

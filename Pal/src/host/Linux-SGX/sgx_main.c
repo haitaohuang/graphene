@@ -235,7 +235,6 @@ int initialize_enclave (struct pal_enclave * enclave)
 
     int                  enclave_image;
     int                  enclave_thread_num = 1;
-    sgx_arch_token_t     enclave_token;
     sgx_arch_sigstruct_t enclave_sigstruct;
     sgx_arch_secs_t      enclave_secs;
     unsigned long        enclave_entry_addr;
@@ -299,11 +298,10 @@ int initialize_enclave (struct pal_enclave * enclave)
     else
         enclave->baseaddr = 0;
 
-    TRY(read_enclave_token, enclave->token, &enclave_token);
     TRY(read_enclave_sigstruct, enclave->sigfile, &enclave_sigstruct);
 
     TRY(create_enclave,
-        &enclave_secs, enclave->baseaddr, enclave->size, &enclave_token);
+        &enclave_secs, enclave->baseaddr, enclave->size, &enclave_sigstruct);
 
     enclave->baseaddr = enclave_secs.baseaddr;
     enclave->size = enclave_secs.size;
@@ -474,7 +472,7 @@ add_pages:
             INLINE_SYSCALL(munmap, 2, data, areas[i].size);
     }
 
-    TRY(init_enclave, &enclave_secs, &enclave_sigstruct, &enclave_token);
+    TRY(init_enclave, &enclave_secs, &enclave_sigstruct);
 
     create_tcs_mapper((void *) enclave_secs.baseaddr + tcs_area->addr,
                       enclave->thread_num);
@@ -781,17 +779,6 @@ static int load_enclave (struct pal_enclave * enclave,
     enclave->sigfile = INLINE_SYSCALL(open, 3, uri + 5, O_RDONLY|O_CLOEXEC, 0);
     if (IS_ERR(enclave->sigfile)) {
         SGX_DBG(DBG_E, "cannot open sigstruct file %s\n", uri);
-        return -EINVAL;
-    }
-
-    uri = alloc_concat(uri, strlen(uri) - 4, ".token", -1);
-    enclave->token = INLINE_SYSCALL(open, 3, uri + 5, O_RDONLY|O_CLOEXEC, 0);
-    if (IS_ERR(enclave->token)) {
-        SGX_DBG(DBG_E, "cannot open token \'%s\'. Use \'"
-                PAL_FILE("pal-sgx-get-token")
-                "\' on the runtime host, or run \'make SGX_RUN=1\' "
-                "in the Graphene source, to create the token file.\n",
-                uri);
         return -EINVAL;
     }
 

@@ -6,12 +6,11 @@
 #include "sgx_internal.h"
 #include "sgx_arch.h"
 #include "sgx_enclave.h"
-#include "graphene-sgx.h"
 
 #include <asm/errno.h>
 
 int isgx_device = -1;
-#define ISGX_FILE "/dev/isgx"
+#define ISGX_FILE "/dev/intel_sgx"
 
 void * zero_page;
 
@@ -23,25 +22,6 @@ int open_gsgx(void)
     return 0;
 }
 
-int read_enclave_token(int token_file, sgx_arch_token_t * token)
-{
-    struct stat stat;
-    int ret;
-    ret = INLINE_SYSCALL(fstat, 2, token_file, &stat);
-    if (IS_ERR(ret))
-        return -ERRNO(ret);
-
-    if (stat.st_size != sizeof(sgx_arch_token_t)) {
-        SGX_DBG(DBG_I, "size of token size does not match\n");
-        return -EINVAL;
-    }
-
-    int bytes = INLINE_SYSCALL(read, 3, token_file, token, sizeof(sgx_arch_token_t));
-    if (IS_ERR(bytes))
-        return -ERRNO(bytes);
-
-    return 0;
-}
 
 int read_enclave_sigstruct(int sigfile, sgx_arch_sigstruct_t * sig)
 {
@@ -109,7 +89,7 @@ int check_wrfsbase_support (void)
 int create_enclave(sgx_arch_secs_t * secs,
                    unsigned long baseaddr,
                    unsigned long size,
-                   sgx_arch_token_t * token)
+                   sgx_arch_sigstruct_t* sig)
 {
     int flags = MAP_SHARED;
 
@@ -126,9 +106,9 @@ int create_enclave(sgx_arch_secs_t * secs,
     secs->size = pagesize;
     while (secs->size < size)
         secs->size <<= 1;
-    secs->ssaframesize = get_ssaframesize(token->attributes.xfrm) / pagesize;
-    secs->miscselect = token->miscselect_mask;
-    memcpy(&secs->attributes, &token->attributes,
+    secs->ssaframesize = get_ssaframesize(sig->attributes.xfrm) / pagesize;
+    secs->miscselect = sig->miscselect_mask;
+    memcpy(&secs->attributes, &sig->attributes,
            sizeof(sgx_arch_attributes_t));
 
     if (baseaddr) {
@@ -154,15 +134,11 @@ int create_enclave(sgx_arch_secs_t * secs,
 
     secs->baseaddr = addr;
 
-#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_create param = {
         .src = (uint64_t) secs,
     };
     int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_CREATE,
                          &param);
-#else
-#error "sgx driver older than 1.8 not supported"
-#endif
 
     if (IS_ERR(ret)) {
         SGX_DBG(DBG_I, "enclave ECREATE failed in enclave creation ioctl - %d\n", ERRNO(ret));
@@ -238,7 +214,6 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                 addr, addr + size, t, p, comment, m);
 
 
-#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_add_page param = {
         .addr       = secs->baseaddr + (uint64_t) addr,
         .src        = (uint64_t) (user_addr ? : zero_page),
@@ -259,16 +234,13 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
         if (param.src != (uint64_t) zero_page) param.src += pagesize;
         added_size += pagesize;
     }
-#else
-#error "sgx driver older than 1.8 not supported"
-#endif
 
     return 0;
 }
 
 int init_enclave(sgx_arch_secs_t * secs,
-                 sgx_arch_sigstruct_t * sigstruct,
-                 sgx_arch_token_t * token)
+                 sgx_arch_sigstruct_t * sigstruct
+                 )
 {
     unsigned long enclave_valid_addr =
                 secs->baseaddr + secs->size - pagesize;
@@ -280,17 +252,13 @@ int init_enclave(sgx_arch_secs_t * secs,
         SGX_DBG(DBG_I, " %02x", sigstruct->enclave_hash[i]);
     SGX_DBG(DBG_I, "\n");
 
-#if SDK_DRIVER_VERSION >= KERNEL_VERSION(1, 8, 0)
     struct sgx_enclave_init param = {
         .addr           = enclave_valid_addr,
         .sigstruct      = (uint64_t) sigstruct,
-        .einittoken     = (uint64_t) token,
+        .flags          = 0UL
     };
     int ret = INLINE_SYSCALL(ioctl, 3, isgx_device, SGX_IOC_ENCLAVE_INIT,
                              &param);
-#else
-#error "sgx driver older than 1.8 not supported"
-#endif
 
     if (IS_ERR(ret)) {
         return -ERRNO(ret);

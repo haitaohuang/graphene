@@ -1,6 +1,6 @@
 include Makefile.am
 
-CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib -Isgx-driver
+CFLAGS	+= -I. -Iinclude -I../.. -I../../../include -I../../../lib
 ASFLAGS += -I. -I../.. -I../../../include
 
 host_files = libpal-Linux-SGX.a pal-sgx debugger/sgx_gdb.so
@@ -16,7 +16,7 @@ urts-objs = $(addprefix sgx_,enclave framework main rtld thread process exceptio
 urts-asm-objs = sgx_entry
 graphene_lib = ../../.lib/graphene-lib.a
 headers	= $(wildcard *.h) $(wildcard ../../*.h) $(wildcard ../../../lib/*.h) \
-	  $(addprefix sgx-driver/,graphene-sgx.h isgx_version.h)
+
 
 all: $(host_files)
 

@@ -33,7 +33,7 @@
 
 #include "sysdep-x86_64.h"
 #include <sys/syscall.h>
-
+#include "sgx.h"
 #define IS_ERR INTERNAL_SYSCALL_ERROR
 #define IS_ERR_P INTERNAL_SYSCALL_ERROR_P
 #define ERRNO INTERNAL_SYSCALL_ERRNO
@@ -73,7 +73,6 @@ struct pal_enclave {
     int manifest;
     int exec;
     int sigfile;
-    int token;
 
     /* manifest */
     struct config_store * config;
@@ -85,13 +84,12 @@ struct pal_enclave {
 int open_gsgx (void);
 int check_wrfsbase_support (void);
 
-int read_enclave_token (int token_file, sgx_arch_token_t * token);
 int read_enclave_sigstruct (int sigfile, sgx_arch_sigstruct_t * sig);
 
 int create_enclave(sgx_arch_secs_t * secs,
                    unsigned long base,
                    unsigned long size,
-                   sgx_arch_token_t * token);
+                   sgx_arch_sigstruct_t * sig);
 
 enum sgx_page_type { SGX_PAGE_SECS, SGX_PAGE_TCS, SGX_PAGE_REG };
 int add_pages_to_enclave(sgx_arch_secs_t * secs,
@@ -102,8 +100,8 @@ int add_pages_to_enclave(sgx_arch_secs_t * secs,
                          const char * comment);
 
 int init_enclave(sgx_arch_secs_t * secs,
-                 sgx_arch_sigstruct_t * sigstruct,
-                 sgx_arch_token_t * token);
+                 sgx_arch_sigstruct_t * sigstruct
+                 );
 
 int destroy_enclave(void * base_addr, size_t length);
 void exit_process (int status, uint64_t start_exiting);

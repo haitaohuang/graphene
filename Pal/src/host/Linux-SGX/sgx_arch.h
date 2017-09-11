@@ -188,22 +188,6 @@ typedef struct {
     sgx_arch_key_t q1, q2;
 } __attribute__((packed)) sgx_arch_sigstruct_t;
 
-typedef struct {
-    uint32_t valid;
-    uint8_t  reserved[44];
-    sgx_arch_attributes_t attributes;
-    sgx_arch_hash_t mrenclave;
-    uint8_t  reserved2[32];
-    sgx_arch_hash_t mrsigner;
-    uint8_t  reserved3[32];
-    uint64_t cpusvnle[2];
-    uint16_t isvprodidle, isvsvnle;
-    uint8_t  reserved4[24];
-    uint32_t miscselect_mask;
-    sgx_arch_attributes_t attribute_mask;
-    sgx_arch_hash_t keyid;
-    uint8_t  mac[16];
-} __attribute__((packed)) sgx_arch_token_t;
 
 typedef struct {
     uint64_t cpusvn[2];
